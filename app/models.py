@@ -15,17 +15,14 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
 
-
 class ReviewStatus(PyEnum):
     POSITIVE = "positive"
     NEGATIVE = "negative"
-
 
 class KworkStatus(PyEnum):
     NOT_COMPLETED = "not_completed"
     IN_PROCESS = "in_process"
     COMPLETED = "completed"
-
 
 user_skill = Table(
     "user_skill",
@@ -40,7 +37,6 @@ kwork_tag = Table(
     Column("kwork_id", ForeignKey("kwork.id", ondelete="CASCADE"), primary_key=True),
     Column("tag_id", ForeignKey("tags.id", ondelete="CASCADE"), primary_key=True),
 )
-
 
 class User(Base):
     __tablename__ = "users"
@@ -105,7 +101,6 @@ class User(Base):
     def __repr__(self) -> str:
         return f"<User id={self.id} username={self.username!r}>"
 
-
 class Skill(Base):
     __tablename__ = "skills"
 
@@ -118,7 +113,6 @@ class Skill(Base):
 
     def __repr__(self) -> str:
         return f"<Skill id={self.id} name={self.name!r}>"
-
 
 class Review(Base):
     __tablename__ = "reviews"
@@ -144,7 +138,6 @@ class Review(Base):
     def __repr__(self) -> str:
         return f"<Review id={self.id} {self.author_id}->{self.target_id}>"
 
-
 class Portfolio(Base):
     __tablename__ = "portfolio"
 
@@ -157,7 +150,6 @@ class Portfolio(Base):
 
     def __repr__(self) -> str:
         return f"<Portfolio id={self.id} title={self.title!r}>"
-
 
 class Kwork(Base):
     __tablename__ = "kwork"
@@ -195,7 +187,6 @@ class Kwork(Base):
     def __repr__(self) -> str:
         return f"<Kwork id={self.id} title={self.title!r} status={self.status}>"
 
-
 class Tag(Base):
     __tablename__ = "tags"
 
@@ -208,7 +199,6 @@ class Tag(Base):
 
     def __repr__(self) -> str:
         return f"<Tag id={self.id} name={self.name!r}>"
-
 
 class Chat(Base):
     __tablename__ = "chat"
@@ -237,7 +227,6 @@ class Chat(Base):
 
     def __repr__(self) -> str:
         return f"<Chat id={self.id} {self.initiator_id}<->{self.receiver_id}>"
-
 
 class Message(Base):
     __tablename__ = "messages"

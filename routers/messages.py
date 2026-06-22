@@ -7,7 +7,6 @@ from app.auth import get_current_user
 
 router = APIRouter()
 
-
 @router.post("/{chat_id}", response_model=schemas.MessageOut)
 async def send_message(
         chat_id: int,
@@ -30,7 +29,6 @@ async def send_message(
 
     message = await crud.create_message(db, chat_id, current_user.id, message_data.text)
     return message
-
 
 @router.get("/{chat_id}", response_model=list[schemas.MessageOut])
 async def get_messages(

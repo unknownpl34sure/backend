@@ -20,23 +20,19 @@ async def lifespan(app: FastAPI):
     await engine.dispose()
     print("Подключение к БД закрыто")
 
-
 app = FastAPI(
     title="Freelance Exchange API",
     version="1.0.0",
     lifespan=lifespan
 )
 
-
 @app.get("/")
 async def root():
     return {"message": "Freelance Exchange API is running!"}
 
-
 @app.get("/ping")
 async def ping():
     return {"status": "ok", "message": "pong"}
-
 
 app.include_router(users.router, prefix="/api/users", tags=["Users"])
 app.include_router(kworks.router, prefix="/api/kworks", tags=["Kworks"])

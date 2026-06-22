@@ -7,7 +7,6 @@ from app.auth import get_current_user
 
 router = APIRouter()
 
-
 @router.post("/", response_model=schemas.PortfolioOut)
 async def create_portfolio_item(
         portfolio_data: schemas.PortfolioCreate,
@@ -17,7 +16,6 @@ async def create_portfolio_item(
     new_item = await crud.create_portfolio(db, portfolio_data, current_user.id)
     return new_item
 
-
 @router.get("/my", response_model=list[schemas.PortfolioOut])
 async def get_my_portfolio(
         current_user: User = Depends(get_current_user),
@@ -25,7 +23,6 @@ async def get_my_portfolio(
 ):
     items = await crud.get_user_portfolio(db, current_user.id)
     return items
-
 
 @router.get("/user/{user_id}", response_model=list[schemas.PortfolioOut])
 async def get_user_portfolio(
@@ -44,7 +41,6 @@ async def get_user_portfolio(
     items = await crud.get_user_portfolio(db, user_id, skip, limit)
     return items
 
-
 @router.get("/{portfolio_id}", response_model=schemas.PortfolioOut)
 async def get_portfolio_item(
         portfolio_id: int,
@@ -57,7 +53,6 @@ async def get_portfolio_item(
             detail="Portfolio item not found"
         )
     return item
-
 
 @router.delete("/{portfolio_id}")
 async def delete_portfolio_item(

@@ -7,8 +7,6 @@ from app.auth import get_current_user
 
 router = APIRouter()
 
-
-
 @router.post("/", response_model=schemas.SkillOut)
 async def create_skill(
         skill_data: schemas.SkillCreate,
@@ -24,7 +22,6 @@ async def create_skill(
     new_skill = await crud.create_skill(db, skill_data.name)
     return new_skill
 
-
 @router.get("/", response_model=list[schemas.SkillOut])
 async def get_all_skills(
         skip: int = 0,
@@ -34,8 +31,6 @@ async def get_all_skills(
     skills = await crud.get_all_skills(db, skip, limit)
     return skills
 
-
-
 @router.get("/my", response_model=list[schemas.SkillOut])
 async def get_my_skills(
         current_user: User = Depends(get_current_user),
@@ -43,7 +38,6 @@ async def get_my_skills(
 ):
     skills = await crud.get_user_skills(db, current_user.id)
     return skills
-
 
 @router.post("/my", response_model=list[schemas.SkillOut])
 async def add_skills_to_me(
@@ -66,7 +60,6 @@ async def add_skills_to_me(
     skills = await crud.get_user_skills(db, current_user.id)
     return skills
 
-
 @router.delete("/my/{skill_id}")
 async def remove_skill_from_me(
         skill_id: int,
@@ -80,7 +73,6 @@ async def remove_skill_from_me(
             detail="Skill not found for this user"
         )
     return {"message": "Skill removed successfully"}
-
 
 @router.get("/user/{user_id}", response_model=list[schemas.SkillOut])
 async def get_user_skills_by_id(

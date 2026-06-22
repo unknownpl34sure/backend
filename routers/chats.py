@@ -7,7 +7,6 @@ from app.auth import get_current_user
 
 router = APIRouter()
 
-
 @router.get("/my", response_model=list[schemas.ChatListOut])
 async def get_my_chats(
         current_user: User = Depends(get_current_user),

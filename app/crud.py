@@ -6,7 +6,6 @@ from app import models
 from app.schemas import UserCreate, KworkCreate, ReviewCreate, PortfolioCreate
 from app.hashing import get_password_hash, generate_salt
 
-
 async def create_user(db: AsyncSession, user_data: UserCreate):
     salt = generate_salt()
     hashed_password = get_password_hash(user_data.password, salt)
@@ -87,7 +86,6 @@ async def get_kwork_by_id(db: AsyncSession, kwork_id: int):
     )
     return result.scalar_one_or_none()
 
-
 async def update_kwork_status(
         db: AsyncSession,
         kwork_id: int,
@@ -139,7 +137,6 @@ async def get_user_chats(db: AsyncSession, user_id: int):
     )
     return result.scalars().all()
 
-
 async def get_chat_by_id(db: AsyncSession, chat_id: int):
     result = await db.execute(
         select(models.Chat)
@@ -147,7 +144,6 @@ async def get_chat_by_id(db: AsyncSession, chat_id: int):
         .where(models.Chat.id == chat_id)
     )
     return result.scalar_one_or_none()
-
 
 async def create_message(
     db: AsyncSession,
@@ -165,7 +161,6 @@ async def create_message(
     await db.refresh(db_message)
     return db_message
 
-
 async def get_chat_messages(db: AsyncSession, chat_id: int, limit: int = 50):
     result = await db.execute(
         select(models.Message)
@@ -174,7 +169,6 @@ async def get_chat_messages(db: AsyncSession, chat_id: int, limit: int = 50):
         .limit(limit)
     )
     return result.scalars().all()
-
 
 async def create_review(
         db: AsyncSession,
@@ -192,7 +186,6 @@ async def create_review(
     await db.refresh(db_review)
     return db_review
 
-
 async def get_reviews_for_user(
         db: AsyncSession,
         user_id: int,
@@ -207,7 +200,6 @@ async def get_reviews_for_user(
         .limit(limit)
     )
     return result.scalars().all()
-
 
 async def get_user_reviews(
         db: AsyncSession,
@@ -224,10 +216,8 @@ async def get_user_reviews(
     )
     return result.scalars().all()
 
-
 async def get_review_by_id(db: AsyncSession, review_id: int):
     return await db.get(models.Review, review_id)
-
 
 async def get_user_rating_stats(db: AsyncSession, user_id: int):
     total_result = await db.execute(
@@ -254,7 +244,6 @@ async def get_user_rating_stats(db: AsyncSession, user_id: int):
         "negative": negative,
         "rating_percent": round((positive / total) * 100, 1)
     }
-
 
 async def create_skill(db: AsyncSession, name: str):
     db_skill = models.Skill(name=name)

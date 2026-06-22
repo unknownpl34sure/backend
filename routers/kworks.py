@@ -7,7 +7,6 @@ from app.auth import get_current_user
 
 router = APIRouter()
 
-
 @router.post("/", response_model=schemas.KworkCreatedResponse)
 async def create_kwork(
     kwork_data: schemas.KworkCreate,
@@ -17,7 +16,6 @@ async def create_kwork(
     new_kwork = await crud.create_kwork(db, kwork_data, current_user.id)
     return {"id": new_kwork.id}
 
-
 @router.get("/", response_model=list[schemas.KworkOut])
 async def get_kworks(
     skip: int = 0,
@@ -25,7 +23,6 @@ async def get_kworks(
     db: AsyncSession = Depends(get_db)
 ):
     return await crud.get_kworks(db, skip, limit)
-
 
 @router.get("/{kwork_id}", response_model=schemas.KworkOut)
 async def get_kwork(
@@ -39,7 +36,6 @@ async def get_kwork(
             detail="Kwork not found"
         )
     return kwork
-
 
 @router.patch("/{kwork_id}/status", response_model=schemas.KworkOut)
 async def update_kwork_status(

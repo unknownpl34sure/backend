@@ -7,7 +7,6 @@ from app.auth import get_current_user
 
 router = APIRouter()
 
-
 @router.post("/", response_model=schemas.ReviewOut)
 async def create_review(
         review_data: schemas.ReviewCreate,
@@ -38,7 +37,6 @@ async def create_review(
     new_review = await crud.create_review(db, review_data, current_user.id)
     return new_review
 
-
 @router.get("/my", response_model=list[schemas.ReviewOut])
 async def get_my_reviews(
         current_user: User = Depends(get_current_user),
@@ -46,7 +44,6 @@ async def get_my_reviews(
 ):
     reviews = await crud.get_user_reviews(db, current_user.id)
     return reviews
-
 
 @router.get("/user/{user_id}", response_model=list[schemas.ReviewOut])
 async def get_user_reviews(
@@ -64,7 +61,6 @@ async def get_user_reviews(
 
     reviews = await crud.get_reviews_for_user(db, user_id, skip, limit)
     return reviews
-
 
 @router.get("/user/{user_id}/rating")
 async def get_user_rating(
