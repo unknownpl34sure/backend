@@ -30,10 +30,6 @@ app = FastAPI(
 async def root():
     return {"message": "Freelance Exchange API is running!"}
 
-@app.get("/ping")
-async def ping():
-    return {"status": "ok", "message": "pong"}
-
 app.include_router(users.router, prefix="/api/users", tags=["Users"])
 app.include_router(kworks.router, prefix="/api/kworks", tags=["Kworks"])
 app.include_router(chats.router, prefix="/api/chats", tags=["Chats"])
