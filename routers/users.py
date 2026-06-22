@@ -5,6 +5,7 @@ from app.database import get_db
 from app import crud, schemas, auth
 from app.models import User
 from app.hashing import verify_password
+from app.schemas import UserUpdate
 
 router = APIRouter()
 
@@ -57,3 +58,12 @@ async def get_current_user_route(
         current_user: User = Depends(auth.get_current_user)
 ):
     return current_user
+
+@router.patch("/me", response_model=schemas.UserOut)
+async def update_profile(
+    user_data: UserUpdate,
+    current_user: User = Depends(auth.get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    updated_user = await crud.update_user(db, current_user.id, user_data)
+    return updated_user

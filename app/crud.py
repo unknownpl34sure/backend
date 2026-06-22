@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc, func
 from sqlalchemy.orm import selectinload
 from app import models
-from app.schemas import UserCreate, KworkCreate, ReviewCreate, PortfolioCreate
+from app.schemas import UserCreate, KworkCreate, ReviewCreate, PortfolioCreate, UserUpdate
 from app.hashing import get_password_hash, generate_salt
 
 async def create_user(db: AsyncSession, user_data: UserCreate):
@@ -26,6 +26,23 @@ async def create_user(db: AsyncSession, user_data: UserCreate):
     await db.commit()
     await db.refresh(db_user)
     return db_user
+
+async def update_user(
+        db: AsyncSession,
+        user_id: int,
+        user_data: UserUpdate
+):
+    user = await get_user_by_id(db, user_id)
+    if not user:
+        return None
+
+    update_dict = user_data.model_dump(exclude_unset=True)
+    for key, value in update_dict.items():
+        setattr(user, key, value)
+
+    await db.commit()
+    await db.refresh(user)
+    return user
 
 async def get_user_by_username(db: AsyncSession, username: str):
     result = await db.execute(
