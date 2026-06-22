@@ -15,7 +15,6 @@ S3_PUBLIC_URL = os.getenv("S3_PUBLIC_URL")
 
 session = aioboto3.Session()
 
-
 async def create_bucket_if_not_exists():
     async with session.client(
             "s3",
