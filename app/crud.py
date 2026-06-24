@@ -64,13 +64,10 @@ async def get_user_by_id(db: AsyncSession, user_id: int):
     return result.scalar_one_or_none()
 
 async def create_kwork(db: AsyncSession, kwork_data: KworkCreate, user_id: int):
-    photo_ids_str = ",".join(kwork_data.photo_ids) if kwork_data.photo_ids else None
-
     db_kwork = models.Kwork(
         title=kwork_data.title,
         description=kwork_data.description,
         price=kwork_data.price,
-        photo_ids=photo_ids_str,
         user_id=user_id,
         status=models.KworkStatus.NOT_COMPLETED
     )
@@ -119,6 +116,28 @@ async def update_kwork_status(
         kwork.client_id = client_id
         await create_chat(db, kwork.user_id, client_id, kwork_id)
 
+    await db.commit()
+    await db.refresh(kwork)
+    return kwork
+
+async def delete_kwork(db: AsyncSession, kwork_id: int):
+    kwork = await get_kwork_by_id(db, kwork_id)
+    if not kwork:
+        return False
+    await db.delete(kwork)
+    await db.commit()
+    return True
+
+async def update_kwork_photos(
+        db: AsyncSession,
+        kwork_id: int,
+        photo_ids: str
+):
+    kwork = await get_kwork_by_id(db, kwork_id)
+    if not kwork:
+        return None
+
+    kwork.photo_ids = photo_ids
     await db.commit()
     await db.refresh(kwork)
     return kwork
@@ -330,7 +349,6 @@ async def create_portfolio(
 ):
     db_portfolio = models.Portfolio(
         title=portfolio_data.title,
-        photo_id=portfolio_data.photo_id,
         user_id=user_id
     )
     db.add(db_portfolio)
@@ -362,3 +380,17 @@ async def delete_portfolio(db: AsyncSession, portfolio_id: int):
     await db.delete(portfolio)
     await db.commit()
     return True
+
+async def update_portfolio_photo(
+        db: AsyncSession,
+        portfolio_id: int,
+        photo_id: str
+):
+    item = await get_portfolio_by_id(db, portfolio_id)
+    if not item:
+        return None
+
+    item.photo_id = photo_id
+    await db.commit()
+    await db.refresh(item)
+    return item

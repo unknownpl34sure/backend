@@ -4,6 +4,7 @@ from app.database import get_db
 from app import crud, schemas
 from app.models import User
 from app.auth import get_current_user
+from app.s3 import delete_file_from_s3
 
 
 router = APIRouter()
@@ -73,6 +74,9 @@ async def delete_portfolio_item(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You can only delete your own portfolio items"
         )
+
+    if item.photo_id:
+        await delete_file_from_s3(item.photo_id)
 
     await crud.delete_portfolio(db, portfolio_id)
     return {"message": "Portfolio item deleted successfully"}

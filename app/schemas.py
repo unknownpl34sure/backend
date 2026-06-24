@@ -1,6 +1,8 @@
 from datetime import datetime
-from pydantic import BaseModel, ConfigDict, EmailStr
+from pydantic import BaseModel, ConfigDict, EmailStr, model_validator
 from app.models import KworkStatus, ReviewStatus
+from app.s3 import get_file_url
+import json
 
 
 class SkillOut(BaseModel):
@@ -20,9 +22,15 @@ class UserOut(BaseModel):
     description: str | None
     specialization: str | None
     avatar_id: str | None
+    avatar_url: str | None = None
     uuid: str
     created_at: datetime
-    #skills: list[SkillOut] = []
+
+    @model_validator(mode='after')
+    def add_avatar_url(self):
+        if self.avatar_id:
+            self.avatar_url = get_file_url(self.avatar_id)
+        return self
 
 class UserCreate(BaseModel):
     username: str
@@ -61,7 +69,6 @@ class KworkCreate(BaseModel):
     description: str | None = None
     price: int
     tag_ids: list[int] = []
-    photo_ids: list[str] = []
 
 class KworkOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -74,8 +81,20 @@ class KworkOut(BaseModel):
     user_id: int
     client_id: int | None = None
     photo_ids: str | None = None
+    photos: list[str] = []
     tags: list[TagOut] = []
     created_at: datetime
+
+    @model_validator(mode='after')
+    def add_photos(self):
+        if self.photo_ids:
+            try:
+                photo_ids = json.loads(self.photo_ids) if isinstance(self.photo_ids, str) else self.photo_ids
+                self.photos = [get_file_url(pid) for pid in photo_ids]
+
+            except:
+                pass
+        return self
 
 class KworkCreatedResponse(BaseModel):
     id: int
@@ -103,7 +122,6 @@ class ChatListOut(BaseModel):
     kwork_id: int | None
     created_at: datetime
     last_message: str | None
-
 
 class MessageCreate(BaseModel):
     text: str
@@ -146,8 +164,6 @@ class UserSkillAdd(BaseModel):
 
 class PortfolioCreate(BaseModel):
     title: str
-    description: str | None = None
-    photo_id: str | None = None
 
 class PortfolioOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -155,4 +171,11 @@ class PortfolioOut(BaseModel):
     id: int
     title: str
     photo_id: str | None
+    photo_url: str | None = None
     user_id: int
+
+    @model_validator(mode='after')
+    def add_photo_url(self):
+        if self.photo_id:
+            self.photo_url = get_file_url(self.photo_id)
+        return self

@@ -60,7 +60,7 @@ async def upload_file_to_s3(file: UploadFile, folder: str = "avatars") -> str:
         raise
 
 
-async def get_file_url(file_id: str) -> str:
+def get_file_url(file_id: str) -> str:
     return f"{S3_PUBLIC_URL}/{file_id}"
 
 

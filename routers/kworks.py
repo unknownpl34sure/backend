@@ -4,6 +4,8 @@ from app.database import get_db
 from app import crud, schemas
 from app.models import User
 from app.auth import get_current_user
+from app.s3 import delete_file_from_s3
+import json
 
 
 router = APIRouter()
@@ -67,3 +69,35 @@ async def update_kwork_status(
         status_data.client_id
     )
     return updated_kwork
+
+@router.delete("/{kwork_id}")
+async def delete_kwork(
+        kwork_id: int,
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)
+):
+    kwork = await crud.get_kwork_by_id(db, kwork_id)
+    if not kwork:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Kwork not found"
+        )
+
+    if kwork.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only delete your own kworks"
+        )
+
+    if kwork.photo_ids:
+        try:
+            photo_ids = json.loads(kwork.photo_ids) if isinstance(kwork.photo_ids, str) else kwork.photo_ids
+            for photo_id in photo_ids:
+                await delete_file_from_s3(photo_id)
+
+        except:
+            pass
+
+    await crud.delete_kwork(db, kwork_id)
+
+    return {"message": "Kwork deleted successfully"}
