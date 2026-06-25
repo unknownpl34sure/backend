@@ -25,6 +25,11 @@ class KworkStatus(PyEnum):
     IN_PROCESS = "in_process"
     COMPLETED = "completed"
 
+class TransactionType(PyEnum):
+    TOPUP = "topup"       # пополнение баланса (заглушка оплаты)
+    PAYMENT = "payment"   # списание у заказчика за выполненный заказ
+    EARNING = "earning"   # зачисление исполнителю за выполненную работу
+
 user_skill = Table(
     "user_skill",
     Base.metadata,
@@ -50,6 +55,8 @@ class User(Base):
     description: Mapped[str] = mapped_column(Text, nullable=True)
     specialization: Mapped[str] = mapped_column(String(150), nullable=True)
     avatar_id: Mapped[str] = mapped_column(String(255), nullable=True)
+    banner_id: Mapped[str] = mapped_column(String(255), nullable=True)
+    balance: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     password_hash: Mapped[str] = mapped_column(String(255))
     password_salt: Mapped[str] = mapped_column(String(255))
     uuid: Mapped[str] = mapped_column(
@@ -235,7 +242,8 @@ class Message(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     chat_id: Mapped[int] = mapped_column(ForeignKey("chat.id", ondelete="CASCADE"))
     sender_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
-    text: Mapped[str] = mapped_column(Text)
+    text: Mapped[str] = mapped_column(Text, nullable=True)
+    image_id: Mapped[str] = mapped_column(String(255), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
@@ -243,5 +251,37 @@ class Message(Base):
     chat: Mapped["Chat"] = relationship(back_populates="messages")
     sender: Mapped["User"] = relationship(back_populates="messages_sent")
 
+    @property
+    def image_url(self) -> str | None:
+        from app.s3 import get_file_url
+
+        return get_file_url(self.image_id) if self.image_id else None
+
     def __repr__(self) -> str:
         return f"<Message id={self.id} chat_id={self.chat_id}>"
+
+class Transaction(Base):
+    __tablename__ = "transactions"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    # Сумма со знаком: > 0 — зачисление, < 0 — списание
+    amount: Mapped[int] = mapped_column(Integer)
+    type: Mapped[TransactionType] = mapped_column(
+        Enum(TransactionType, native_enum=False)
+    )
+    kwork_id: Mapped[int | None] = mapped_column(
+        ForeignKey("kwork.id", ondelete="SET NULL"), nullable=True, default=None
+    )
+    description: Mapped[str] = mapped_column(String(255), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    user: Mapped["User"] = relationship()
+    kwork: Mapped["Kwork | None"] = relationship()
+
+    def __repr__(self) -> str:
+        return f"<Transaction id={self.id} user_id={self.user_id} amount={self.amount}>"

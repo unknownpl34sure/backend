@@ -1,8 +1,24 @@
 from datetime import datetime
-from pydantic import BaseModel, ConfigDict, EmailStr, model_validator
-from app.models import KworkStatus, ReviewStatus
+from pydantic import BaseModel, ConfigDict, EmailStr, model_validator, field_validator
+from app.models import KworkStatus, ReviewStatus, TransactionType
 from app.s3 import get_file_url
 import json
+import re
+
+# Допускаем необязательный «+», цифры и разделители; значимых цифр 10–15.
+_PHONE_RE = re.compile(r"^\+?[\d\s()-]+$")
+
+
+def validate_phone(value: str | None) -> str | None:
+    if value is None:
+        return None
+    value = value.strip()
+    if not value:
+        return None
+    digits = re.sub(r"\D", "", value)
+    if not _PHONE_RE.match(value) or not (10 <= len(digits) <= 15):
+        raise ValueError("Некорректный номер телефона")
+    return value
 
 
 class SkillOut(BaseModel):
@@ -23,6 +39,9 @@ class UserOut(BaseModel):
     specialization: str | None
     avatar_id: str | None
     avatar_url: str | None = None
+    banner_id: str | None = None
+    banner_url: str | None = None
+    balance: int = 0
     uuid: str
     created_at: datetime
 
@@ -30,6 +49,8 @@ class UserOut(BaseModel):
     def add_avatar_url(self):
         if self.avatar_id:
             self.avatar_url = get_file_url(self.avatar_id)
+        if self.banner_id:
+            self.banner_url = get_file_url(self.banner_id)
         return self
 
 class UserCreate(BaseModel):
@@ -41,16 +62,40 @@ class UserCreate(BaseModel):
     description: str | None = None
     specialization: str | None = None
 
+    _validate_phone = field_validator("phone")(validate_phone)
+
 class UserUpdate(BaseModel):
     name: str | None = None
     phone: str | None = None
     description: str | None = None
     specialization: str | None = None
     avatar_id: str | None = None
+    banner_id: str | None = None
+
+    _validate_phone = field_validator("phone")(validate_phone)
 
 class UserLogin(BaseModel):
     username: str
     password: str
+
+class BalanceTopUp(BaseModel):
+    amount: int
+    # Поля платёжной формы (заглушка, реальная оплата не выполняется)
+    card_number: str | None = None
+    card_holder: str | None = None
+
+class BalanceOut(BaseModel):
+    balance: int
+
+class TransactionOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    amount: int
+    type: TransactionType
+    kwork_id: int | None = None
+    description: str | None = None
+    created_at: datetime
 
 class Token(BaseModel):
     access_token: str
@@ -120,11 +165,14 @@ class ChatListOut(BaseModel):
     initiator_id: int
     receiver_id: int
     kwork_id: int | None
+    kwork_title: str | None = None
+    kwork_photo: str | None = None
     created_at: datetime
     last_message: str | None
 
 class MessageCreate(BaseModel):
-    text: str
+    text: str | None = None
+    image_id: str | None = None
 
 class MessageOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -132,7 +180,9 @@ class MessageOut(BaseModel):
     id: int
     chat_id: int
     sender_id: int
-    text: str
+    text: str | None = None
+    image_id: str | None = None
+    image_url: str | None = None
     created_at: datetime
 
 class ReviewCreate(BaseModel):

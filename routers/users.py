@@ -68,3 +68,45 @@ async def update_profile(
 ):
     updated_user = await crud.update_user(db, current_user.id, user_data)
     return updated_user
+
+
+@router.post("/me/balance/topup", response_model=schemas.UserOut)
+async def topup_balance(
+    payload: schemas.BalanceTopUp,
+    current_user: User = Depends(auth.get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Пополнение баланса. Реальная оплата не выполняется — это заглушка."""
+    if payload.amount <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Сумма пополнения должна быть больше нуля"
+        )
+
+    updated_user = await crud.topup_balance(db, current_user.id, payload.amount)
+    return updated_user
+
+
+@router.get("/me/transactions", response_model=list[schemas.TransactionOut])
+async def get_my_transactions(
+    skip: int = 0,
+    limit: int = 50,
+    current_user: User = Depends(auth.get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """История операций по балансу: пополнения, оплаты и зачисления за работу."""
+    return await crud.get_user_transactions(db, current_user.id, skip, limit)
+
+
+@router.get("/{user_id}", response_model=schemas.UserOut)
+async def get_user_by_id(
+    user_id: int,
+    db: AsyncSession = Depends(get_db)
+):
+    user = await crud.get_user_by_id(db, user_id)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    return user

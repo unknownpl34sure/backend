@@ -45,6 +45,31 @@ async def update_user(
     await db.refresh(user)
     return user
 
+async def topup_balance(db: AsyncSession, user_id: int, amount: int):
+    """Пополнение баланса (заглушка оплаты — деньги просто зачисляются)."""
+    # Блокируем строку пользователя, чтобы параллельные пополнения не перетёрли баланс
+    result = await db.execute(
+        select(models.User)
+        .where(models.User.id == user_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+    user = result.scalar_one_or_none()
+    if not user:
+        return None
+
+    user.balance = (user.balance or 0) + amount
+    db.add(models.Transaction(
+        user_id=user.id,
+        amount=amount,
+        type=models.TransactionType.TOPUP,
+        description="Пополнение баланса",
+    ))
+    await db.commit()
+    await db.refresh(user)
+    return user
+
+
 async def get_user_by_username(db: AsyncSession, username: str):
     result = await db.execute(
         select(models.User).where(models.User.username == username)
@@ -120,6 +145,98 @@ async def update_kwork_status(
     await db.refresh(kwork)
     return kwork
 
+async def complete_kwork_with_payment(db: AsyncSession, kwork, payer):
+    """Подтверждение выполнения: деньги переводятся от заказчика исполнителю.
+
+    Заказчик — создатель объявления (kwork.user_id, он же `payer`).
+    Исполнитель — тот, кто взял задание (kwork.client_id), ему зачисляются деньги.
+
+    Возвращает (kwork, error), где error — один из:
+      None — успех;
+      "no_worker" — у задания нет исполнителя;
+      "insufficient" — на балансе заказчика недостаточно средств.
+    """
+    if kwork.client_id is None:
+        return None, "no_worker"
+
+    if kwork.client_id == payer.id:
+        return None, "no_worker"
+
+    # Блокируем строки обоих участников в стабильном порядке (по id),
+    # чтобы избежать гонок, двойного списания и взаимных блокировок.
+    ids = sorted({payer.id, kwork.client_id})
+    result = await db.execute(
+        select(models.User)
+        .where(models.User.id.in_(ids))
+        .order_by(models.User.id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+    users_by_id = {u.id: u for u in result.scalars().all()}
+    payer_row = users_by_id.get(payer.id)
+    worker_row = users_by_id.get(kwork.client_id)
+
+    if payer_row is None or worker_row is None:
+        return None, "no_worker"
+
+    if (payer_row.balance or 0) < kwork.price:
+        return None, "insufficient"
+
+    payer_row.balance = (payer_row.balance or 0) - kwork.price
+    worker_row.balance = (worker_row.balance or 0) + kwork.price
+    kwork.status = models.KworkStatus.COMPLETED
+
+    db.add(models.Transaction(
+        user_id=payer_row.id,
+        amount=-kwork.price,
+        type=models.TransactionType.PAYMENT,
+        kwork_id=kwork.id,
+        description=f"Оплата заказа «{kwork.title}»",
+    ))
+    db.add(models.Transaction(
+        user_id=worker_row.id,
+        amount=kwork.price,
+        type=models.TransactionType.EARNING,
+        kwork_id=kwork.id,
+        description=f"Оплата за выполнение «{kwork.title}»",
+    ))
+
+    await db.commit()
+    await db.refresh(kwork)
+    await db.refresh(payer)
+    return kwork, None
+
+
+async def get_user_transactions(
+        db: AsyncSession,
+        user_id: int,
+        skip: int = 0,
+        limit: int = 50
+):
+    result = await db.execute(
+        select(models.Transaction)
+        .where(models.Transaction.user_id == user_id)
+        .order_by(desc(models.Transaction.created_at))
+        .offset(skip)
+        .limit(limit)
+    )
+    return result.scalars().all()
+
+
+async def order_kwork(db: AsyncSession, kwork_id: int, client_id: int):
+    """A buyer (client) takes a kwork: marks it in process and opens a chat."""
+    kwork = await get_kwork_by_id(db, kwork_id)
+    if not kwork:
+        return None, None
+
+    kwork.client_id = client_id
+    kwork.status = models.KworkStatus.IN_PROCESS
+    chat = await create_chat(db, kwork.user_id, client_id, kwork_id)
+    await db.commit()
+    await db.refresh(kwork)
+    return kwork, chat
+
+
 async def delete_kwork(db: AsyncSession, kwork_id: int):
     kwork = await get_kwork_by_id(db, kwork_id)
     if not kwork:
@@ -148,11 +265,13 @@ async def create_chat(
         receiver_id: int,
         kwork_id: int | None = None
 ):
-    existing = await db.execute(
-        select(models.Chat).where(models.Chat.kwork_id == kwork_id)
-    )
-    if existing.scalar_one_or_none():
-        return existing.scalar_one_or_none()
+    if kwork_id is not None:
+        existing = await db.execute(
+            select(models.Chat).where(models.Chat.kwork_id == kwork_id)
+        )
+        existing_chat = existing.scalar_one_or_none()
+        if existing_chat:
+            return existing_chat
 
     chat = models.Chat(
         initiator_id=initiator_id,
@@ -167,6 +286,7 @@ async def create_chat(
 async def get_user_chats(db: AsyncSession, user_id: int):
     result = await db.execute(
         select(models.Chat)
+        .options(selectinload(models.Chat.kwork))
         .where(
             (models.Chat.initiator_id == user_id) | (models.Chat.receiver_id == user_id)
         )
@@ -186,12 +306,14 @@ async def create_message(
     db: AsyncSession,
     chat_id: int,
     sender_id: int,
-    text: str
+    text: str | None = None,
+    image_id: str | None = None
 ):
     db_message = models.Message(
         chat_id=chat_id,
         sender_id=sender_id,
-        text=text
+        text=text,
+        image_id=image_id
     )
     db.add(db_message)
     await db.commit()

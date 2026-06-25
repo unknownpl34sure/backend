@@ -58,4 +58,5 @@ volumes:
 
 networks:
   freelance_network:
+    name: freelance_network
     driver: bridge

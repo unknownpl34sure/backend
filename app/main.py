@@ -1,5 +1,7 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
+from sqlalchemy import text
 from app.database import engine, Base
 import uvicorn
 from app import models
@@ -12,6 +14,20 @@ async def lifespan(app: FastAPI):
     print("Запуск сервера...")
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        # Лёгкая миграция: добавляем колонку вложения, если её ещё нет,
+        # и разрешаем пустой текст (сообщение может быть только с картинкой)
+        await conn.execute(
+            text("ALTER TABLE messages ADD COLUMN IF NOT EXISTS image_id VARCHAR(255)")
+        )
+        await conn.execute(
+            text("ALTER TABLE messages ALTER COLUMN text DROP NOT NULL")
+        )
+        await conn.execute(
+            text("ALTER TABLE users ADD COLUMN IF NOT EXISTS banner_id VARCHAR(255)")
+        )
+        await conn.execute(
+            text("ALTER TABLE users ADD COLUMN IF NOT EXISTS balance INTEGER NOT NULL DEFAULT 0")
+        )
 
     await create_bucket_if_not_exists()
 
@@ -25,6 +41,21 @@ app = FastAPI(
     title="Freelance Exchange API",
     version="1.0.0",
     lifespan=lifespan
+)
+
+# CORS for the React frontend (MVP: allow common dev origins + all as fallback)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ],
+    allow_origin_regex=r"http://(localhost|127\.0\.0\.1):\d+",
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 @app.get("/")

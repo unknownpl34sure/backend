@@ -1,9 +1,11 @@
+import json
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app import crud, schemas
 from app.models import User
 from app.auth import get_current_user
+from app.s3 import get_file_url
 
 
 router = APIRouter()
@@ -19,11 +21,23 @@ async def get_my_chats(
     for chat in chats:
         messages = await crud.get_chat_messages(db, chat.id, limit=1)
         last_message = messages[0].text if messages else None
+
+        kwork_photo = None
+        if chat.kwork and chat.kwork.photo_ids:
+            try:
+                photo_ids = json.loads(chat.kwork.photo_ids)
+                if photo_ids:
+                    kwork_photo = get_file_url(photo_ids[0])
+            except (ValueError, TypeError):
+                pass
+
         result.append({
             "id": chat.id,
             "initiator_id": chat.initiator_id,
             "receiver_id": chat.receiver_id,
             "kwork_id": chat.kwork_id,
+            "kwork_title": chat.kwork.title if chat.kwork else None,
+            "kwork_photo": kwork_photo,
             "created_at": chat.created_at,
             "last_message": last_message
         })
