@@ -82,7 +82,8 @@ async def upload_file_to_s3(file: UploadFile, folder: str = "avatars") -> str:
                 Bucket=S3_BUCKET_NAME,
                 Key=file_id,
                 Body=content,
-                ContentType=file.content_type or "application/octet-stream"
+                ContentType=file.content_type or "application/octet-stream",
+                ACL='public-read'  # ← Делает файл публичным при загрузке
             )
         return file_id
     except Exception as e:
