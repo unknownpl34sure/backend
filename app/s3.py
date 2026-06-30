@@ -98,7 +98,6 @@ def get_file_url(file_id: str) -> str | None:
         return file_id
     return f"{BACKEND_URL}/files/{file_id}"  # ← ИЗМЕНИТЬ
 
-
 async def delete_file_from_s3(file_id: str):
     try:
         async with session.client(
