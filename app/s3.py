@@ -14,6 +14,7 @@ S3_ACCESS_KEY = os.getenv("S3_ACCESS_KEY")
 S3_SECRET_KEY = os.getenv("S3_SECRET_KEY")
 S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME")
 S3_PUBLIC_URL = os.getenv("S3_PUBLIC_URL")
+BACKEND_URL = os.getenv("BACKEND_URL", "")  # ← ДОБАВИТЬ
 
 session = aioboto3.Session()
 
@@ -95,8 +96,7 @@ def get_file_url(file_id: str) -> str | None:
         return None
     if file_id.startswith("http://") or file_id.startswith("https://"):
         return file_id
-    # Возвращаем путь к прокси-эндпоинту, а не прямой URL к S3
-    return f"/files/{file_id}"
+    return f"{BACKEND_URL}/files/{file_id}"  # ← ИЗМЕНИТЬ
 
 
 async def delete_file_from_s3(file_id: str):
