@@ -83,7 +83,6 @@ async def upload_file_to_s3(file: UploadFile, folder: str = "avatars") -> str:
                 Key=file_id,
                 Body=content,
                 ContentType=file.content_type or "application/octet-stream",
-                ACL='public-read'  # ← Делает файл публичным при загрузке
             )
         return file_id
     except Exception as e:
@@ -91,13 +90,13 @@ async def upload_file_to_s3(file: UploadFile, folder: str = "avatars") -> str:
         raise
 
 
-async def get_file_url(file_id: str) -> str:
+def get_file_url(file_id: str) -> str | None:
     if not file_id:
         return None
     if file_id.startswith("http://") or file_id.startswith("https://"):
         return file_id
-    # Генерируем временную ссылку вместо прямого URL
-    return await get_presigned_url(file_id)
+    # Возвращаем путь к прокси-эндпоинту, а не прямой URL к S3
+    return f"/files/{file_id}"
 
 
 async def delete_file_from_s3(file_id: str):
@@ -114,31 +113,3 @@ async def delete_file_from_s3(file_id: str):
     except Exception as e:
         print(f"Ошибка удаления: {e}")
         return False
-
-
-async def get_presigned_url(file_id: str, expiration: int = 3600) -> str:
-    """Генерирует временную публичную ссылку на файл (по умолчанию на 1 час)"""
-    if not file_id:
-        return None
-    if file_id.startswith("http://") or file_id.startswith("https://"):
-        return file_id
-
-    try:
-        async with session.client(
-                "s3",
-                endpoint_url=S3_ENDPOINT_URL,
-                aws_access_key_id=S3_ACCESS_KEY,
-                aws_secret_access_key=S3_SECRET_KEY,
-        ) as s3_client:
-            url = await s3_client.generate_presigned_url(
-                'get_object',
-                Params={
-                    'Bucket': S3_BUCKET_NAME,
-                    'Key': file_id
-                },
-                ExpiresIn=expiration
-            )
-            return url
-    except Exception as e:
-        print(f"Ошибка генерации presigned URL: {e}")
-        return f"{S3_PUBLIC_URL}/{file_id}"  # fallback

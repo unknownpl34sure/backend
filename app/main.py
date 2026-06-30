@@ -59,6 +59,29 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from fastapi import HTTPException
+from fastapi.responses import Response
+from app.s3 import session, S3_ENDPOINT_URL, S3_ACCESS_KEY, S3_SECRET_KEY, S3_BUCKET_NAME
+
+@app.get("/files/{path:path}")
+async def serve_file(path: str):
+    try:
+        async with session.client(
+            "s3",
+            endpoint_url=S3_ENDPOINT_URL,
+            aws_access_key_id=S3_ACCESS_KEY,
+            aws_secret_access_key=S3_SECRET_KEY,
+        ) as s3_client:
+            response = await s3_client.get_object(
+                Bucket=S3_BUCKET_NAME,
+                Key=path
+            )
+            body = await response['Body'].read()
+            content_type = response.get('ContentType', 'image/jpeg')
+            return Response(content=body, media_type=content_type)
+    except Exception as e:
+        raise HTTPException(status_code=404, detail="File not found")
+
 @app.get("/")
 async def root():
     return {"message": "Freelance Exchange API is running!"}
